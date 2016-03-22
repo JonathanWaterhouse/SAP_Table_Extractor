@@ -17,8 +17,6 @@ class SAP_table_view(PyQt4.QtCore.QThread):
         try:
             result = self._SAP_conn.call(self._FM, QUERY_TABLE = table_name, NO_DATA = 'NO', ROWCOUNT = 0,
                                      ROWSKIPS = 0,  OPTIONS =  [], FIELDS = [])
-
-            for v in result['FIELDS']: print v
             return result['FIELDS']
         except Exception, message:
             msg = PyQt4.QtGui.QMessageBox()

@@ -17,6 +17,10 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
     thread so that GUI actions such as cancel, and display of status bar changes can be performed during processing.
     """
     def __init__(self, MainWindow):
+        """
+
+        :type self: object
+        """
         self.setupUi(MainWindow)
         self._otherGuiSetup()
         #Setup some internally required file locations
@@ -44,6 +48,7 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
         #sqlite3 database location and name
         self._db_file_name = 'SAPTables.db'
         row.execute("SELECT VALUE FROM SETTINGS WHERE KEY ='DB_NAME'")
+        self._sqlite_db_name = ''
         for r in row: self._sqlite_db_name = r[0]
         self.DBName_lineEdit.setText(self._sqlite_db_name)
         conn.close()
@@ -353,4 +358,5 @@ if __name__ == '__main__':
     sys.exit(app.exec_())
 #TODO Allow selection of database + sqlite3 table.
 #TODO If append, what happens if table structure changed.
-
+#TODO Audit that a database is chosen or make a default location
+#TODO output potential number of records before the extract
