@@ -18,19 +18,19 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
     """
     def __init__(self, MainWindow):
         """
-
-        :type self: object
+        :type self._logged_in, Boolean, indicating if user successfully authenticated to SAP (SAPlogonUI.py)
+        :type self._sqlite_ini,_name Text field, containing name of local sqlite3 file containing saved settings. No Path.
+        :type self._msg_display_time, Integer, Time in milliseconds to display informational messages in message bar
+        :type self._progress_bar_interval, Integer, Time in milliseconds between timer events moving progress bar forward
+        :type self._db_file_name, Text Field, the actual file name of the database to store retrieved data (not incl. path)
         """
         self.setupUi(MainWindow)
         self._otherGuiSetup()
         #Setup some internally required file locations
         dataDir = self.getDataDir() + os.sep
         self._logged_in = False #Logged in to SAP
-        self._selected_fields = []
         self._sqlite_ini_name = 'ini.db'
         # Initialisations of other stuff
-        self._IsRFCError = False
-        self._RFC_READ_TABLE_output  = None
         self._msg_display_time = 20000
         self._progress_bar_interval = 200
         #Initilisations from last time in
@@ -48,7 +48,7 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
         #sqlite3 database location and name
         self._db_file_name = 'SAPTables.db'
         row.execute("SELECT VALUE FROM SETTINGS WHERE KEY ='DB_NAME'")
-        self._sqlite_db_name = ''
+        self._sqlite_db_name = dataDir + self._db_file_name # This is default if no stored value found next
         for r in row: self._sqlite_db_name = r[0]
         self.DBName_lineEdit.setText(self._sqlite_db_name)
         conn.close()
@@ -58,7 +58,7 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
         This application may have a windows executable built from it using cx_Freeze in
         which case the local directly that the script runs from assumed by python
         will be incorrect. Here we derive the data directory. This allows the ini file
-        Maestro.ini to be found and intermediate files for Graphviz
+        to be found
         """
         if getattr(sys, 'frozen', False):
         # The application is frozen
@@ -195,7 +195,9 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
         self.progressBar.setTextVisible(False)
         self.progressBarTimer.start(self._progress_bar_interval)
         #Read the data
-        table = str(self.SAPTable_lineEdit.text())
+        table_in = str(self.SAPTable_lineEdit.text())
+        table_out = str(self.DBTable_lineEdit.text())
+        if table_out == '': table_out = table_in
         max_rows = int(str(self.maxRows_lineEdit.text()))
         skip_rows = 0
         selection = [{'TEXT': str(self.Restriction_lineEdit.text())}]
@@ -207,7 +209,7 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
 
         if self.Append_checkBox.isChecked(): append = True
         else: append = False
-        self._execution_thread = Get_SAP_Table_Data(self._SAP_conn, table, max_rows, skip_rows, selection,
+        self._execution_thread = Get_SAP_Table_Data(self._SAP_conn, table_in, table_out, max_rows, skip_rows, selection,
                                                     fields, retrieve_data, self._sqlite_db_name, append)
         #Thread events
         PyQt4.QtCore.QObject.connect(self._execution_thread, SIGNAL("SAP_extract_complete"), self.SAP_result_out)
@@ -356,7 +358,7 @@ if __name__ == '__main__':
     ui = SAPTableExtractorGUI(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())
-#TODO Allow selection of database + sqlite3 table.
 #TODO If append, what happens if table structure changed.
 #TODO Audit that a database is chosen or make a default location
 #TODO output potential number of records before the extract
+#TODO Allow logout of one SAP and into another

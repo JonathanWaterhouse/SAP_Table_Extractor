@@ -11,13 +11,14 @@ class Get_SAP_Table_Data(PyQt4.QtCore.QThread):
     a sqlite database. Error messages in case of RFC problems or sqlite problems are passed back to the GUI, also
     updates about the stage of prcessing.
     """
-    def __init__(self, SAP_connection, table, maxrows, skip_rows, selection, fields, retrieve_data, sqlite_db_name,
+    def __init__(self, SAP_connection, table, table_out, max_rows, skip_rows, selection, fields, retrieve_data, sqlite_db_name,
                  append):
         PyQt4.QtCore.QThread.__init__(self)
         self._FM = 'RFC_READ_TABLE'
         self._SAP_conn = SAP_connection
         self._table = table
-        self._max_rows = maxrows
+        self._table_out = table_out
+        self._max_rows = max_rows
         self._skip_rows = skip_rows
         self._selection = selection
         self._fields = fields
@@ -126,7 +127,7 @@ class Get_SAP_Table_Data(PyQt4.QtCore.QThread):
             #Output to sqlite
             if not isError:
                 self.emit(PyQt4.QtCore.SIGNAL("display_msg"), 'Starting sqlite import.')
-                self.update_sqlite_table(self._sqlite_db_name, '[' + self._table + ']', self._append, result)
+                self.update_sqlite_table(self._sqlite_db_name, '[' + self._table_out + ']', self._append, result)
 
                 num_recs = len(result['DATA'])
                 self.emit(PyQt4.QtCore.SIGNAL("SAP_extract_complete"), num_recs)
