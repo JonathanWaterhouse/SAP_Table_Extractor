@@ -200,7 +200,9 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
         if table_out == '': table_out = table_in
         max_rows = int(str(self.maxRows_lineEdit.text()))
         skip_rows = 0
-        selection = [{'TEXT': str(self.Restriction_lineEdit.text())}]
+        selection = [{'TEXT': str(self.Restriction_lineEdit.text())},
+                     {'TEXT': str(self.Restriction_lineEdit1.text())},
+                     {'TEXT': str(self.Restriction_lineEdit2.text())}]
         fields = []
         for el in self.Field_listWidget.selectedItems():
             table_field = str(el.text())
@@ -302,9 +304,10 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
         :return: Nothing
         """
         db = PyQt4.QtGui.QFileDialog(parent=None)
-        db.setFileMode(PyQt4.QtGui.QFileDialog.Directory)
+        db.setFileMode(PyQt4.QtGui.QFileDialog.AnyFile)
         db.exec_()
-        self.DBName_lineEdit.setText(str(db.selectedFiles()[0]) + os.sep + self._db_file_name)
+        #self.DBName_lineEdit.setText(str(db.selectedFiles()[0]) + os.sep + self._db_file_name)
+        self.DBName_lineEdit.setText(str(db.selectedFiles()[0]))
         conn = sqlite3.connect(self._sqlite_ini_name)
         c = conn.cursor()
         if self.SAPTable_lineEdit.text() != '':
@@ -315,7 +318,7 @@ class SAPTableExtractorGUI(Ui_SAPTableExtractor):
             msg = PyQt4.QtGui.QMessageBox()
             msg.setWindowTitle("Error")
             msg.setIcon(PyQt4.QtGui.QMessageBox.Critical)
-            msg.setInformativeText("You did not select a table.")
+            msg.setInformativeText("You did not select a database.")
             msg.exec_()
             return
         conn.commit()

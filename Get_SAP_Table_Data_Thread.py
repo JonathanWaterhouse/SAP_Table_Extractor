@@ -40,7 +40,7 @@ class Get_SAP_Table_Data(PyQt4.QtCore.QThread):
         :param fields: A List of dictionaries of the required fields for retrieval.
         Example format:  fields = [{'FIELDNAME': 'DTA'}, {'FIELDNAME':'DTA_TYPE'}]
         :param retrieve_data: If blank then data is retrieved, if not only record definitions are retrieved. 1 character.
-        :return: The FRC_READ_TABLE FM returns a dictionary with 3 entries, keyed on values "DATA", "FIELDS", "OPTIONS"
+        :return: The RFC_READ_TABLE FM returns a dictionary with 3 entries, keyed on values "DATA", "FIELDS", "OPTIONS"
             "OPTIONS" specifies the options that were chosen in the selection. It is a list of dictionaries in the same
             format as the "selection" parameter described earlier
 
@@ -104,7 +104,7 @@ class Get_SAP_Table_Data(PyQt4.QtCore.QThread):
             sql_stmt_field_defs.append('[' + field['FIELDNAME'] + ']')
         val_qmarks = ['?' for el in sql_stmt_field_defs]
         sql_stmt = 'INSERT INTO ' + table + ' (' + ','.join(sql_stmt_field_defs) + ') VALUES (' + ','.join(val_qmarks) + ')'
-        print sql_stmt
+        #print sql_stmt
         c.executemany(sql_stmt,record_tup)
 
         #We are done. Commit and close sqlite connection

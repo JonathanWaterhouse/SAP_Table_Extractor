@@ -14,7 +14,7 @@ if sys.platform == "win32":
     base = "Win32GUI"
 
 setup(name='SAPDownload',
-      version='1.00',
+      version='1.10',
       description='SAP Table Downloader',
 	  options = {"build_exe": { 'packages' : packages, 'include_files': include_files}},
       executables = [Executable("SAPTableExtractorGUI.py", base=base)]
