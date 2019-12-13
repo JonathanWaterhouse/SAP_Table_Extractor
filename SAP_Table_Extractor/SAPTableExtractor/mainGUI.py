@@ -11,6 +11,7 @@ from pyrfc._exception import ABAPRuntimeError
 from SAPTableExtractor.SAP_thread import SAP_thread
 from tkinter.filedialog import FileDialog
 import os
+from SAPTableExtractor.publisher import publisher
 
 class mainGUI(tk.Frame):
     def __init__(self, master=None):
@@ -33,6 +34,9 @@ class mainGUI(tk.Frame):
         conn = sqlite3.connect(self._sqlite_ini_name)
         c = conn.cursor()
         c.execute("CREATE TABLE IF NOT EXISTS SETTINGS (KEY TEXT PRIMARY KEY, VALUE TEXT)")
+        #Subscribe to message publisher
+        self._msg_publisher = publisher()
+        self._msg_publisher.register(self, self.update_msg_bar)
         #Set the GUI up - must be last in constructor since method relies on constructor setup 
         self.setupGUI()
         
@@ -74,8 +78,9 @@ class mainGUI(tk.Frame):
         button_extract = tk.Button(self._master, text='Extract Fields', command=self.extractFields).grid(row=13, column=3, sticky='E')  
         button_exit = tk.Button(self._master, text='Exit/Cancel', command=self.exit).grid(row=13, column=4, sticky='E')   
         #message area
-        label_msg_bar = tk.Label(self._master,text="No Message", fg='grey').grid(row=14, column=0, sticky='W', columnspan=5)
-        
+        self._msg_bar_var = tk.StringVar()
+        label_msg_bar = tk.Label(self._master,textvariable=self._msg_bar_var, fg='grey').grid(row=14, column=0, sticky='W', columnspan=5)
+        self._msg_bar_var.set("No Message")
         #Initial focus
         self._entry_table_name.focus()  
         
@@ -183,8 +188,9 @@ class mainGUI(tk.Frame):
             data_process_thread = SAP_thread(self._SAP,
                                              SAP_spec, 
                                              sqlite_db_name,  
-                                             append)
-
+                                             append,
+                                             self._msg_publisher)
+            self._msg_bar_var.set("Data extraction in process")
             data_process_thread.start()
             return        
     
@@ -242,6 +248,14 @@ class mainGUI(tk.Frame):
         Allows login gui to set the SAP object and pass it back to main parent
         """
         self._SAP = connection
+        return
+    
+    def update_msg_bar(self, message):
+        '''
+        This method is called by publisher class whenever it has a message the application needs to know about.
+        The message is placed in the message bar
+        '''
+        self._msg_bar_var.set(message)
         return
         
 if __name__ == '__main__':
