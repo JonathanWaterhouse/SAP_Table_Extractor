@@ -7,11 +7,11 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 from SAPTableExtractor.loginGUI import loginGUI
 import sqlite3
-from pyrfc._exception import ABAPRuntimeError
 from SAPTableExtractor.SAP_thread import SAP_thread
 from tkinter.filedialog import FileDialog
 import os
 from SAPTableExtractor.publisher import publisher
+from pyrfc._exception import ABAPApplicationError, ABAPRuntimeError, LogonError, CommunicationError
 
 class mainGUI(tk.Frame):
     def __init__(self, master=None):
@@ -29,14 +29,15 @@ class mainGUI(tk.Frame):
         self._sqlite_db_name = 'SAP_tables.db'
         self._sqlite_ini_name = 'ini.db'
         self._logged_in = False
-        self._SAP = None
+        self._SAP_conn = None
+        self._FM = 'RFC_READ_TABLE'
         #Set up initialisations db and table if required
         conn = sqlite3.connect(self._sqlite_ini_name)
         c = conn.cursor()
         c.execute("CREATE TABLE IF NOT EXISTS SETTINGS (KEY TEXT PRIMARY KEY, VALUE TEXT)")
         #Subscribe to message publisher
         self._msg_publisher = publisher()
-        self._msg_publisher.register(self, self.update_msg_bar)
+        self._msg_publisher.register(self, self.handle_messages)
         #Set the GUI up - must be last in constructor since method relies on constructor setup 
         self.setupGUI()
         
@@ -69,17 +70,20 @@ class mainGUI(tk.Frame):
         #Database area
         label_db_name = tk.Label(self._master,text="Output Database Name").grid(row=10, column=0, sticky='W', columnspan=4)
         self._entry_db_name = tk.Entry(self._master)
-        self._entry_db_name.grid(row=11, column=0, sticky='WE', columnspan=5)   
+        self._entry_db_name.grid(row=11, column=0, sticky='WE', columnspan=5)  
+        label_db_name = tk.Label(self._master,text="Output Database Table Name").grid(row=12, column=0, sticky='W', columnspan=4)
+        self._entry_db_table = tk.Entry(self._master)
+        self._entry_db_table.grid(row=13, column=0, sticky='WE', columnspan=5)                  
         self._checkbutton_onoff = tk.IntVar()  
         self._checkbutton_append = tk.Checkbutton(self._master, text='Append to existing table?', variable=self._checkbutton_onoff)
-        self._checkbutton_append.grid(row=12, column=0, sticky='W', columnspan=4)
-        button_choose_db = tk.Button(self._master, text='Choose Database', command=self.chooseDb).grid(row=12, column=4, sticky='E',pady=5)
+        self._checkbutton_append.grid(row=14, column=0, sticky='W', columnspan=4)
+        button_choose_db = tk.Button(self._master, text='Choose Database', command=self.chooseDb).grid(row=14, column=4, sticky='E',pady=5)
         #Main Control Button Area
-        button_extract = tk.Button(self._master, text='Extract Fields', command=self.extractFields).grid(row=13, column=3, sticky='E')  
-        button_exit = tk.Button(self._master, text='Exit/Cancel', command=self.exit).grid(row=13, column=4, sticky='E')   
+        button_extract = tk.Button(self._master, text='Extract Fields', command=self.extractFields).grid(row=15, column=3, sticky='E')  
+        button_exit = tk.Button(self._master, text='Exit/Cancel', command=self.exit).grid(row=15, column=4, sticky='E')   
         #message area
         self._msg_bar_var = tk.StringVar()
-        label_msg_bar = tk.Label(self._master,textvariable=self._msg_bar_var, fg='grey').grid(row=14, column=0, sticky='W', columnspan=5)
+        label_msg_bar = tk.Label(self._master,textvariable=self._msg_bar_var, fg='grey').grid(row=16, column=0, sticky='W', columnspan=5)
         self._msg_bar_var.set("No Message")
         #Initial focus
         self._entry_table_name.focus()  
@@ -109,14 +113,25 @@ class mainGUI(tk.Frame):
             self._entry_table_name.focus()
             return
             
-        if self._SAP is None:
+        if self._SAP_conn is None:
             self.login()
             return
         else:
-            result = self._SAP.read_SAP_table_spec(table_name, [])
-            #Testing
+            try:
+                result = self._SAP_conn.call(self._FM, QUERY_TABLE = table_name, NO_DATA = 'NO', ROWCOUNT = 0,
+                                         ROWSKIPS = 0,  OPTIONS =  [], FIELDS = [])
+            except(ABAPApplicationError) as e:
+                self._msg_publisher.dispatch("error", "ABAPApplicationError " + '\n' + e.key + " : " + e.message)
+                return
+            except(ABAPRuntimeError):
+                self._msg_publisher.dispatch("error", "ABAPRuntimeError " + '\n' + e.key + " : " + e.message)
+                return
+            except(CommunicationError):
+                self._msg_publisher.dispatch("error", "CommunicationError " + '\n' + e.key + " : " + e.message)
+                return
+            #Display record specification
             self._listbox_fields.delete(0,tk.END)
-            for field_info in result:
+            for field_info in result['FIELDS']:
                 self._listbox_fields.insert(tk.END,
                     field_info['FIELDNAME'] +
                     " - " + field_info['FIELDTEXT'] +
@@ -130,7 +145,7 @@ class mainGUI(tk.Frame):
         b) A proper login to SAP was established (if not a login option is presented)
         c) The selected column lengths do not total > 512 which is the max the SAP function module can handle
         d) returns the data and adds it to a table in a sqlite3 database
-        :return:
+        @return: Nothing
         """ 
         #Was a table selected
         SAP_table_name = str.upper(self._entry_table_name.get()) #SAP FM does not like lower case table name
@@ -140,7 +155,7 @@ class mainGUI(tk.Frame):
             return        
     
         #Check we are logged in
-        if self._SAP is None:
+        if self._SAP_conn is None:
             self.login()
             return
         
@@ -155,10 +170,11 @@ class mainGUI(tk.Frame):
             lengths = [int(el.lstrip('0')) for el in lengths_str]
         else :
             #Case 2 NO Data fields were selected in the selection box
-            fields = self._SAP.read_SAP_table_spec(SAP_table_name,field_selections=[])
+            result = self._SAP_conn.call(self._FM, QUERY_TABLE = SAP_table_name, NO_DATA = 'NO', ROWCOUNT = 0,
+                         ROWSKIPS = 0,  OPTIONS =  [], FIELDS = [])
             lengths = []
-            for field in fields: lengths.append (int(field['LENGTH'].lstrip('0')))
-            tbl_field_names = [field_spec['FIELDNAME'] for field_spec in fields]
+            for field in result['FIELDS']: lengths.append (int(field['LENGTH'].lstrip('0')))
+            tbl_field_names = [field_spec['FIELDNAME'] for field_spec in result['FIELDS']]
         tot_length = 0
         for i in lengths: tot_length += i
         if tot_length > 512:
@@ -185,15 +201,20 @@ class mainGUI(tk.Frame):
                     'FIELDS': tbl_field_names,
                     'SELECTION': selection,
                     'RETRIEVEDATA': retrieve_data}}
-            data_process_thread = SAP_thread(self._SAP,
+            if self._entry_db_table.get() == '': sqlite_table = SAP_table_name
+            else: sqlite_table = self._entry_db_table.get()
+
+            data_process_thread = SAP_thread(self._SAP_conn,
                                              SAP_spec, 
-                                             sqlite_db_name,  
+                                             sqlite_db_name, 
+                                             sqlite_table, 
                                              append,
                                              self._msg_publisher)
             self._msg_bar_var.set("Data extraction in process")
             data_process_thread.start()
-            return        
-    
+            return
+       
+              
     def chooseDb(self):
         """Present file dialog and choose a db file
         """
@@ -207,10 +228,10 @@ class mainGUI(tk.Frame):
     def exit(self):
         """logout of SAP and close this GUI and dependent widgets
         """
-        if self._SAP is None: #We did not login to SAP
+        if self._SAP_conn is None: #We did not login to SAP
             pass
         else:
-            self._SAP.close()
+            self._SAP_conn.close()
         #Cache some values for next time    
         conn = sqlite3.connect(self._sqlite_ini_name)
         c = conn.cursor()
@@ -247,15 +268,20 @@ class mainGUI(tk.Frame):
         """
         Allows login gui to set the SAP object and pass it back to main parent
         """
-        self._SAP = connection
+        self._SAP_conn = connection
         return
     
-    def update_msg_bar(self, message):
+    def handle_messages(self, message_type, message):
         '''
         This method is called by publisher class whenever it has a message the application needs to know about.
-        The message is placed in the message bar
+        This method reacts according to the type of error message. Information is placed in the
+        message bar error message is displayed in a popup.
         '''
-        self._msg_bar_var.set(message)
+        if message_type == 'information':
+            self._msg_bar_var.set(message)
+        elif message_type == 'error':
+            self._msg_bar_var.set('ERROR')
+            tk.messagebox.showerror('Error', message)
         return
         
 if __name__ == '__main__':

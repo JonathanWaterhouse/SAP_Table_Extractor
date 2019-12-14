@@ -5,10 +5,10 @@ Created on 1 Dec 2019
 '''
 import tkinter as tk
 from tkinter import messagebox
-import COMSAPConn as SC
+#import COMSAPConn as SC
 import pyrfc
 import sqlite3
-from pyrfc._exception import ABAPRuntimeError
+from pyrfc._exception import LogonError
 
 #class loginGUI(tk.Frame):
 class loginGUI(tk.Toplevel):
@@ -92,7 +92,7 @@ class loginGUI(tk.Toplevel):
         return
         
     def login(self):
-        SAP = SC.SAP_to_sqlite_table()
+        #SAP = SC.SAP_to_sqlite_table()
         client = str(self.entry_client.get())
         user = str(self.entry_user.get())
         passwd = str(self.entry_pw.get())
@@ -103,7 +103,8 @@ class loginGUI(tk.Toplevel):
         params = {'client' : client, 'user' : user, 'passwd' : passwd , 'lang' : lang,
                   'mshost' : mshost, 'sysid' : sysid, 'group' : group}
         try:
-            SAP.login_to_SAP(params)
+            #SAP.login_to_SAP(params)
+            SAP_conn = pyrfc.Connection(**params)
             #Store last used values for later use
             conn = sqlite3.connect(self._parent_gui.get_ini_db_name())
             c = conn.cursor()
@@ -120,13 +121,13 @@ class loginGUI(tk.Toplevel):
             conn.commit()
             conn.close()
             #Pass back the SAP object to parent GUI
-            self._parent_gui.set_SAP_connection(SAP)
+            self._parent_gui.set_SAP_connection(SAP_conn)
             #Finish up
             self.destroy()
             return
         
-        except ABAPRuntimeError:
-            tk.messagebox.showerror('Error', 'Unable to login to SAP')
+        except(LogonError) as e:
+            tk.messagebox.showerror('Error', 'Unable to login to SAP' + '\n' + e.key + ' : ' + e.message)
             #self._parent_gui.set_SAP_connection(None)
             return
         

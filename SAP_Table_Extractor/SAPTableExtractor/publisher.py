@@ -31,13 +31,14 @@ class publisher(object):
         '''
         del self._subscribers[who]
         
-    def dispatch(self, message):
+    def dispatch(self, message_type, message):
         '''
         Called by the publisher with a message to be passed to all subscribers
         @param message: the messgae to be passed to subscribers.
+        @param message_type: defines what type of message this is eg informational, error etc
         '''
         for subscriber, callback in self._subscribers.items():
-            callback(message)
+            callback(message_type, message)
         
         
     
