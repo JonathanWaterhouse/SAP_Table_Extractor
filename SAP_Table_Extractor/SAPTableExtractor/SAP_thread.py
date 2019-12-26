@@ -132,13 +132,13 @@ class SAP_thread(threading.Thread):
             num_recs = len(result['DATA'])
             self._publisher.dispatch("information", "SAP Data extraction of " + repr(num_recs) + " records complete")
         except(ABAPApplicationError) as e:
-            self._msg_publisher.dispatch("error", "ABAPApplicationError " + '\n' + e.key + " : " + e.message)
+            self._publisher.dispatch("error", "ABAPApplicationError " + '\n' + e.key + " : " + e.message)
             return
-        except(ABAPRuntimeError):
-            self._msg_publisher.dispatch("error", "ABAPRuntimeError " + '\n' + e.key + " : " + e.message)
+        except(ABAPRuntimeError) as e:
+            self._publisher.dispatch("error", "ABAPRuntimeError " + '\n' + e.key + " : " + e.message)
             return
         except(CommunicationError):
-            self._msg_publisher.dispatch("error", "CommunicationError " + '\n' + e.key + " : " + e.message)
+            self._publisher.dispatch("error", "CommunicationError " + '\n' + e.key + " : " + e.message)
             return             
                    
         #Output to sqlite
@@ -149,7 +149,7 @@ class SAP_thread(threading.Thread):
             num_recs = len(result['DATA'])
             self._publisher.dispatch("information", "Data input to sqlite table of " + repr(num_recs) + " records complete")
         except (sqlite3.Error):
-            self._msg_publisher.dispatch("error", "Sqlite3.Error " + '\n' + e.key + " : " + e.message)
+            self._publisher.dispatch("error", "Sqlite3.Error " + '\n' + e.key + " : " + e.message)
             return 
             
         return  

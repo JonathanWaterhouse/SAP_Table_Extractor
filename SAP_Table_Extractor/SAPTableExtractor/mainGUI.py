@@ -4,6 +4,7 @@ Created on 1 Dec 2019
 @author: U104675
 '''
 import tkinter as tk
+import tkinter.ttk as ttk
 from tkinter import messagebox, filedialog
 from SAPTableExtractor.loginGUI import loginGUI
 import sqlite3
@@ -36,8 +37,8 @@ class mainGUI(tk.Frame):
         c = conn.cursor()
         c.execute("CREATE TABLE IF NOT EXISTS SETTINGS (KEY TEXT PRIMARY KEY, VALUE TEXT)")
         #Subscribe to message publisher
-        self._msg_publisher = publisher()
-        self._msg_publisher.register(self, self.handle_messages)
+        self._publisher = publisher()
+        self._publisher.register(self, self.handle_messages)
         #Set the GUI up - must be last in constructor since method relies on constructor setup 
         self.setupGUI()
         
@@ -121,13 +122,13 @@ class mainGUI(tk.Frame):
                 result = self._SAP_conn.call(self._FM, QUERY_TABLE = table_name, NO_DATA = 'NO', ROWCOUNT = 0,
                                          ROWSKIPS = 0,  OPTIONS =  [], FIELDS = [])
             except(ABAPApplicationError) as e:
-                self._msg_publisher.dispatch("error", "ABAPApplicationError " + '\n' + e.key + " : " + e.message)
+                self._publisher.dispatch("error", "ABAPApplicationError " + '\n' + e.key + " : " + e.message)
                 return
             except(ABAPRuntimeError):
-                self._msg_publisher.dispatch("error", "ABAPRuntimeError " + '\n' + e.key + " : " + e.message)
+                self._publisher.dispatch("error", "ABAPRuntimeError " + '\n' + e.key + " : " + e.message)
                 return
             except(CommunicationError):
-                self._msg_publisher.dispatch("error", "CommunicationError " + '\n' + e.key + " : " + e.message)
+                self._publisher.dispatch("error", "CommunicationError " + '\n' + e.key + " : " + e.message)
                 return
             #Display record specification
             self._listbox_fields.delete(0,tk.END)
@@ -209,7 +210,7 @@ class mainGUI(tk.Frame):
                                              sqlite_db_name, 
                                              sqlite_table, 
                                              append,
-                                             self._msg_publisher)
+                                             self._publisher)
             self._msg_bar_var.set("Data extraction in process")
             data_process_thread.start()
             return
