@@ -15,7 +15,7 @@ class loginGUI(tk.Toplevel):
     '''
     classdocs
     '''
-    def __init__(self, parent_gui):
+    def __init__(self, parent_gui, publisher):
         '''
         Constructor. Sets up Gui and populates last used parameters from sqlite db
         
@@ -23,15 +23,16 @@ class loginGUI(tk.Toplevel):
                         in particular to pass back SAP object and get the ini db name
         '''
         self._parent_gui = parent_gui
+        self._publisher = publisher
         #Setup GUI
         super().__init__(parent_gui)
         self.title('SAP Logon')
         self.minsize(250,200)
-        self.maxsize(250,200)
+        #self.maxsize(250,200)
         label_sso = tk.Label(self,text = 'SSO')
         self._checkbutton_onoff = tk.IntVar() 
         self._checkbutton_sso = tk.Checkbutton(self, text='', padx=0, variable=self._checkbutton_onoff, command=self.set_SSO)
-        self._label_user = tk.Label(self,text='User', width=0)
+        self._label_user = tk.Label(self,text='User')
         self.entry_user = tk.Entry(self)
         self._label_pw = tk.Label(self,text='Password')
         self.entry_pw = tk.Entry(self, show='*')
@@ -50,25 +51,29 @@ class loginGUI(tk.Toplevel):
         self.entry_msgsrvr = tk.Entry(self)
         self._button_exit = tk.Button(self, text='Exit/Cancel', command=self.exit)
         self._button_login = tk.Button(self, text='Login', command=self.login)
+        
         #Layout
         label_sso.grid(row=0, column=0, sticky='W')
         self._checkbutton_sso.grid(row=0, column=1, sticky='W')
         self._label_user.grid(row=1, column=0, sticky='W')
-        self.entry_user.grid(row=1, column=1, sticky='WE')
+        self.entry_user.grid(row=1, column=1, sticky='WE', padx=4)
         self._label_pw.grid(row=2, column=0, sticky='W')
-        self.entry_pw.grid(row=2, column=1, sticky='WE')
+        self.entry_pw.grid(row=2, column=1, sticky='WE', padx=4)
         label_system.grid(row=3, column=0, sticky='W')
-        self.entry_system.grid(row=3, column=1, sticky='WE')
+        self.entry_system.grid(row=3, column=1, sticky='WE', padx=4)
         label_client.grid(row=4, column=0, sticky='W')
-        self.entry_client.grid(row=4, column=1, sticky='WE')
+        self.entry_client.grid(row=4, column=1, sticky='WE', padx=4)
         label_lang.grid(row=5, column=0, sticky='W')
-        self.entry_lang.grid(row=5, column=1, sticky='WE')
+        self.entry_lang.grid(row=5, column=1, sticky='WE', padx=4)
         label_group.grid(row=6, column=0, sticky='W')
-        self.entry_group.grid(row=6, column=1, sticky='WE')
+        self.entry_group.grid(row=6, column=1, sticky='WE', padx=4)
         label_msgsrvr.grid(row=7, column=0, sticky='W')
-        self.entry_msgsrvr.grid(row=7, column=1, sticky='WE')
+        self.entry_msgsrvr.grid(row=7, column=1, sticky='WE', padx=4)
         self._button_exit.grid(row=8, column=0, sticky='E')
-        self._button_login.grid(row=8, column=1, sticky='E')
+        self._button_login.grid(row=8, column=1, sticky='E', padx=4)
+        
+        #Global layout
+        self.grid_columnconfigure(1,weight=1)
         
         #Make dialog modal
         self.focus_set() #TODO: Make login dialog modal - not working now.
@@ -143,6 +148,8 @@ class loginGUI(tk.Toplevel):
             conn.close()
             #Pass back the SAP object to parent GUI
             self._parent_gui.set_SAP_connection(SAP_conn)
+            self._publisher.dispatch("information", "SAP login to " + sysid + '\\' + client + ' successful')
+            self._publisher.dispatch("system", sysid + '\\' + client)
             #Finish up
             self.destroy()
             return
@@ -155,21 +162,25 @@ class loginGUI(tk.Toplevel):
     def set_SSO(self):
         
         if self._checkbutton_onoff.get() == 1:
+            #Set up login dialog with extra stuff for SSO and remove irrelevant fields
             self._label_user.grid_remove()
             self._label_pw.grid_remove()
             self.entry_user.grid_remove()
             self.entry_pw.grid_remove()
             self._label_snc_partnername.grid(row=8, column=0, sticky='E')
-            self._entry_snc_partnername.grid(row=8, column=1, sticky='E')
-            self._button_exit.grid(row=10, column=0, sticky='E')
-            self._button_login.grid(row=10, column=1, sticky='E')
+            self._entry_snc_partnername.grid(row=8, column=1, sticky='WE', padx=4)
+            self._button_exit.grid(row=11, column=0, sticky='E')
+            self._button_login.grid(row=11, column=1, sticky='E', padx=4)
+            self.minsize(350, 200)
         else:
+            #Set up login dialog with extra stuff for UID/PW login and remove irrelevant fields
             self._label_user.grid()
             self._label_pw.grid()
             self._label_snc_partnername.grid_remove()
             self._entry_snc_partnername.grid_remove()      
             self.entry_user.grid()
             self.entry_pw.grid()
+            self.minsize(250, 200)
         return 
         
     def exit(self):

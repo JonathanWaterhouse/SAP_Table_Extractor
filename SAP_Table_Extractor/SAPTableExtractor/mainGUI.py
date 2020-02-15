@@ -59,7 +59,7 @@ class mainGUI(tk.Frame):
         self._listbox_fields.grid(row=3, column=0,sticky='NSWE', columnspan=5)
         scrollbar_fields.config(command=self._listbox_fields.yview)
         scrollbar_fields.grid(row=3, column=5,sticky='NES')
-        button_show_fields = tk.Button(self._master, text='Show Fields', command=self.showFields).grid(row=4, column=4, sticky='E')
+        button_show_fields = tk.Button(self._master, text='Show Fields', command=self.showFields).grid(row=4, column=4, sticky='WE')
         #ABAP Area
         label_ABAP = tk.Label(self._master,text="ABAP Restriction (eg. MATL_TYPE = 'HALB') - max 72 chars per line").grid(row=5, column=0, sticky='W', columnspan=5)
         self._entry_ABAP_1 = tk.Entry(self._master)
@@ -78,14 +78,19 @@ class mainGUI(tk.Frame):
         self._checkbutton_onoff = tk.IntVar()  
         self._checkbutton_append = tk.Checkbutton(self._master, text='Append to existing table?', variable=self._checkbutton_onoff)
         self._checkbutton_append.grid(row=14, column=0, sticky='W', columnspan=4)
-        button_choose_db = tk.Button(self._master, text='Choose Database', command=self.chooseDb).grid(row=14, column=4, sticky='E',pady=5)
-        #Main Control Button Area
-        button_extract = tk.Button(self._master, text='Extract Fields', command=self.extractFields).grid(row=15, column=3, sticky='E')  
-        button_exit = tk.Button(self._master, text='Exit/Cancel', command=self.exit).grid(row=15, column=4, sticky='E')   
+        button_choose_db = tk.Button(self._master, text='Choose Database', command=self.chooseDb).grid(row=14, column=4, sticky='WE', padx=4, pady=5)
         #message area
         self._msg_bar_var = tk.StringVar()
         label_msg_bar = tk.Label(self._master,textvariable=self._msg_bar_var, fg='grey').grid(row=16, column=0, sticky='W', columnspan=5)
-        self._msg_bar_var.set("No Message")
+        self._msg_bar_var.set("No Message") 
+        self._sap_sys_var = tk.StringVar() 
+        self._label_sap_sys = tk.Label(self._master,textvariable=self._sap_sys_var, fg='red').grid(row=16, column=4, sticky='E', columnspan=4)      
+        #Main Control Button Area
+        button_sap_login = tk.Button(self._master, text='SAP Login', command=self.login).grid(row=15, column=1,sticky='WE', padx=4, pady=5)
+        button_sap_logout = tk.Button(self._master, text='SAP Logout', command=self.logout).grid(row=15, column=2,sticky='WE', padx=4, pady=5)
+        button_extract = tk.Button(self._master, text='Extract Fields', command=self.extractFields).grid(row=15, column=3, sticky='WE', padx=4)  
+        button_exit = tk.Button(self._master, text='Exit/Cancel', command=self.exit).grid(row=15, column=4, sticky='WE', padx=4)   
+
         #Initial focus
         self._entry_table_name.focus()  
         
@@ -254,11 +259,30 @@ class mainGUI(tk.Frame):
 
         :return: None. 
         """
-        lo = loginGUI(self)
-        #TODO: Figure out why I need to call this method here and cannot do it within loginGUI class
-        lo.fill_login_parms()
+        if self._SAP_conn is None: #We did not login
+            lo = loginGUI(self, self._publisher)
+            #TODO: Figure out why I need to call this method here and cannot do it within loginGUI class
+            lo.fill_login_parms()
+        else: self._msg_bar_var.set("You are already logged in")
+        
         return
     
+    def logout(self):
+        """
+        Logout of SAP. 
+
+        :return: None. 
+        """
+        if self._SAP_conn is None: #We did not login to SAP
+            self._msg_bar_var.set("You were not logged in")
+        else:
+            self._SAP_conn.close()
+            self._SAP_conn = None
+            self._msg_bar_var.set("Successfully logged out")
+            self._sap_sys_var.set('')
+            
+        return
+            
     def get_ini_db_name(self):
         """
         Allows the login ui to get the sqlite db .ini it needs to store last selections to
@@ -283,6 +307,8 @@ class mainGUI(tk.Frame):
         elif message_type == 'error':
             self._msg_bar_var.set('ERROR')
             tk.messagebox.showerror('Error', message)
+        elif message_type == 'system':
+            self._sap_sys_var.set(message)
         return
         
 if __name__ == '__main__':
